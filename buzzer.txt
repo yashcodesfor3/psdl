@@ -1,0 +1,39 @@
+#include <xc.h>            // Preferred header over <pic18f4550.h>
+#define RELAY_PIN LATAbits.LATA4
+
+// Configuration bits (optional, but good to define)
+#pragma config FOSC = HS     // High-speed oscillator
+#pragma config WDT = OFF     // Watchdog Timer disabled
+#pragma config LVP = OFF     // Low-voltage programming disabled
+
+void __interrupt() extint_isr(void)  // Use __interrupt() for XC8
+{
+    unsigned int i;
+
+    if (INTCON3bits.INT1IF)  // Correct way to check INT1 flag
+    {
+        INTCON3bits.INT1IF = 0;       // Clear the interrupt flag
+        INTCON3bits.INT1IE = 0;       // Disable INT1 temporarily
+        RELAY_PIN = ~RELAY_PIN;       // Toggle the relay pin
+
+        for (i = 0; i < 10000; i++);  // Debounce delay
+
+        INTCON3bits.INT1IE = 1;       // Re-enable INT1
+    }
+}
+
+void main(void)
+{
+    ADCON1 = 0x0F;                  // All ports as digital I/O
+
+    TRISAbits.TRISA4 = 0;          // RA4 as output (relay)
+    TRISBbits.TRISB1 = 1;          // RB1 as input (INT1)
+
+    RELAY_PIN = 1;                 // Initial state of relay
+
+    INTCON3bits.INT1IE = 1;        // Enable INT1 external interrupt
+    INTCON2bits.INTEDG1 = 0;       // Trigger on falling edge
+    INTCONbits.GIE = 1;            // Enable global interrupts
+
+    while (1);                     // Infinite loop
+}
